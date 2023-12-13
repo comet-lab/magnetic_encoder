@@ -234,33 +234,67 @@ void setup()
 
 void loop()
 {
+
+
+  // float angle = rot1.getTotalAngle();
+
+  // Serial.println(angle);
+
+  float r1Angle = rot1.getTotalAngle();
+  float r2Angle = rot2.getTotalAngle();
+  float r3Angle = rot3.getTotalAngle();
+
   
   if (Serial.available() >= 2)
   {
     int readByte = Serial.read();
-    String char1 = String(readByte);
+    char letter = readByte;
 
     readByte = Serial.read();
-    String char2 = String(readByte);
+    char number = readByte;
 
-    String request = String(char1 + char2);
+    if(letter == 'r')
+    {
+      if(number == '1')       Serial.print(r1Angle);
+      else if(number == '2')  Serial.print(r2Angle);
+      else if(number == '3')  Serial.print(r3Angle);
+    }
+    else if (letter == 't')
+    {
 
-    float angle = 0;
+    }
+    else 
+    {
+      Serial.print(letter);
+    }
 
-    if      (request.equals("r1")) angle = rot1.getTotalAngle();
-    else if (request.equals("r2")) angle = rot2.getTotalAngle();
-    else if (request.equals("r3")) angle = rot3.getTotalAngle();
+    // if (request.equals(String('r' + '1'))) 
+    // {
+    //   Serial.println(rot1.getTotalAngle());
+    // }
+    // else if (request.equals("r2")) 
+    // {
+    //   Serial.println(rot2.getTotalAngle());
+    // }
+    // else if (request.equals("r3")) 
+    // {
+    //   Serial.println(rot3.getTotalAngle());
+    // }
     // else if (request.equals("t1")) pin = CS_TRANS1;
     // else if (request.equals("t2")) pin = CS_TRANS2;
     // else if (request.equals("t3")) pin = CS_TRANS3;
+
+    // Serial.println(rot1.getTotalAngle());
     
-    char buffer[9];
+    // int bufferLength = 9;
 
-    dtostrf(angle, 9, 2, buffer);
+    // char buffer[bufferLength];
 
-    Serial.write (buffer);
+    // dtostrf(angle, bufferLength, 2, buffer);
+
+    // Serial.write (buffer, bufferLength);
     
-
+    Serial.println();
   }
   
   
