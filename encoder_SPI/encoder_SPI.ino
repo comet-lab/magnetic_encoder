@@ -8,16 +8,16 @@
 
 uint16_t command = 0b1111111111111111; //read command (0xFFF)
 
-float timer = 0; //timer for updating the LCD and sending the data through the serial port
-float rpmTimer = 0; //timer for estimating the RPM
+// float timer = 0; //timer for updating the LCD and sending the data through the serial port
+// float rpmTimer = 0; //timer for estimating the RPM
 
 class Motor
 {
   public:
   
     byte pin;
-    float startAngle = 0;
-    float totalAngle = 0;
+    double startAngle = 0;
+    double totalAngle = 0;
     int turnsCounter = 0;
     int quadrant = 0;
 
@@ -32,21 +32,22 @@ class Motor
       digitalWrite(pin, HIGH);
 
       startAngle = readRegister();
+      turnsCounter = 0;
     }
 
-    float getTotalAngle()
+    double getTotalAngle()
     {
-      float degAngle = readRegister(); //read the position of the magnet
-      float correctedAngle = correctAngle(degAngle); //normalize the previous reading
+      double degAngle = readRegister(); //read the position of the magnet
+      double correctedAngle = correctAngle(degAngle); //normalize the previous reading
       totalAngle = checkQuadrant(correctedAngle); //check the direction of the rotation and calculate the final displacement
 
       return totalAngle;
     }
 
-    float readRegister()
+    double readRegister()
     {
       uint16_t rawData = 0; //bits from the encoder (16 bits, but top 2 has to be discarded)
-      float degAngle = 0; //Angle in degrees
+      double degAngle = 0; //Angle in degrees
       
       SPI.beginTransaction(SPISettings(3000000, MSBFIRST, SPI_MODE1));
 
@@ -66,7 +67,7 @@ class Motor
 
       rawData = rawData & 0b0011111111111111; //removing the top 2 bits (PAR and EF)
 
-      degAngle = (float)rawData / 16384.0 * 360.0; //16384 = 2^14, 360 = 360 degrees
+      degAngle = (double)rawData / (double)16384.0 * (double)360.0; //16384 = 2^14, 360 = 360 degrees
 
       //Serial.print("Deg: ");
       //Serial.println(degAngle);
@@ -74,14 +75,14 @@ class Motor
       return degAngle;
     }
 
-    float correctAngle(float degAngle)
+    double correctAngle(float degAngle)
     {
       //recalculate angle
-      float correctedAngle = degAngle - startAngle; //this tares the position
+      double correctedAngle = degAngle - startAngle; //this tares the position
 
       if (correctedAngle < 0) //if the calculated angle is negative, we need to "normalize" it
       {
-        correctedAngle = correctedAngle + 360; //correction for negative numbers (i.e. -15 becomes +345)
+        correctedAngle = correctedAngle + (double)360.0; //correction for negative numbers (i.e. -15 becomes +345)
       }
       else
       {
@@ -93,7 +94,7 @@ class Motor
       return correctedAngle;
     }
 
-    float checkQuadrant(float correctedAngle)
+    double checkQuadrant(double correctedAngle)
     {
       /*
         //Quadrants:
@@ -162,7 +163,7 @@ class Motor
 
       // Serial.println(turnsCounter);
 
-      totalAngle = (turnsCounter * 360) + correctedAngle; //number of turns (+/-) plus the actual angle within the 0-360 range
+      totalAngle = ((double)turnsCounter * (double)360) + correctedAngle; //number of turns (+/-) plus the actual angle within the 0-360 range
       //Serial.print("Total angle: ");
       //Serial.println(totalAngle, 2); //absolute position of the motor expressed in degree angles, 2 digits
 
@@ -172,16 +173,20 @@ class Motor
 };
 
 
-const byte CS_ROT1 = 30; //Chip select pin for manual switching
+const byte CS_ROT1 = 31; //Chip select pin for manual switching
 const byte CS_ROT2 = 32; //Chip select pin for manual switching
-const byte CS_ROT3 = 34; //Chip select pin for manual switching
-const byte CS_TRANS1 = -1; //Chip select pin for manual switching
-const byte CS_TRANS2 = -1; //Chip select pin for manual switching
-const byte CS_TRANS3 = -1; //Chip select pin for manual switching
+const byte CS_ROT3 = 35; //Chip select pin for manual switching
+const byte CS_TRANS1 = 30; //Chip select pin for manual switching
+const byte CS_TRANS2 = 33; //Chip select pin for manual switching
+const byte CS_TRANS3 = 36; //Chip select pin for manual switching
 
 Motor rot1 = Motor(CS_ROT1);
 Motor rot2 = Motor(CS_ROT2);
 Motor rot3 = Motor(CS_ROT3);
+
+Motor trans1 = Motor(CS_TRANS1);
+Motor trans2 = Motor(CS_TRANS2);
+Motor trans3 = Motor(CS_TRANS3);
 
 // uint16_t rawData = 0; //bits from the encoder (16 bits, but top 2 has to be discarded)
 // float degAngle = 0; //Angle in degrees
@@ -221,6 +226,10 @@ void setup()
   rot2.init();
   rot3.init();
 
+  trans1.init();
+  trans2.init();
+  trans3.init();
+
   //Checking the initial angle
   // float degAngle = readRegister(CS_ROT1);
   // startAngle1 = degAngle;
@@ -234,15 +243,13 @@ void setup()
 
 void loop()
 {
+  double r1Angle = rot1.getTotalAngle();
+  double r2Angle = rot2.getTotalAngle();
+  double r3Angle = rot3.getTotalAngle();
 
-
-  // float angle = rot1.getTotalAngle();
-
-  // Serial.println(angle);
-
-  float r1Angle = rot1.getTotalAngle();
-  float r2Angle = rot2.getTotalAngle();
-  float r3Angle = rot3.getTotalAngle();
+  double t1Angle = trans1.getTotalAngle();
+  double t2Angle = trans2.getTotalAngle();
+  double t3Angle = trans3.getTotalAngle();
 
   
   if (Serial.available() >= 2)
@@ -258,47 +265,35 @@ void loop()
       if(number == '1')       Serial.print(r1Angle);
       else if(number == '2')  Serial.print(r2Angle);
       else if(number == '3')  Serial.print(r3Angle);
+      else                    Serial.print(number);
     }
     else if (letter == 't')
     {
-
+      if(number == '1')       Serial.print(t1Angle);
+      else if(number == '2')  Serial.print(t2Angle);
+      else if(number == '3')  Serial.print(t3Angle);
+      else                    Serial.print(number);
     }
-    else 
+    else if (letter == 'x' and number == 'x')
+    {
+      rot1.init();
+      rot2.init();
+      rot3.init();
+      trans1.init();
+      trans2.init();
+      trans3.init();
+      Serial.print((double)0.0);
+    }
+    else
     {
       Serial.print(letter);
     }
-
-    // if (request.equals(String('r' + '1'))) 
-    // {
-    //   Serial.println(rot1.getTotalAngle());
-    // }
-    // else if (request.equals("r2")) 
-    // {
-    //   Serial.println(rot2.getTotalAngle());
-    // }
-    // else if (request.equals("r3")) 
-    // {
-    //   Serial.println(rot3.getTotalAngle());
-    // }
-    // else if (request.equals("t1")) pin = CS_TRANS1;
-    // else if (request.equals("t2")) pin = CS_TRANS2;
-    // else if (request.equals("t3")) pin = CS_TRANS3;
-
-    // Serial.println(rot1.getTotalAngle());
-    
-    // int bufferLength = 9;
-
-    // char buffer[bufferLength];
-
-    // dtostrf(angle, bufferLength, 2, buffer);
-
-    // Serial.write (buffer, bufferLength);
     
     Serial.println();
   }
   
   
-  
+  delay(20);
   
   // if (millis() - timer > 50)
   // {
